@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 using CG.Web.MegaApiClient;
 using ICSharpCode.SharpZipLib.Zip;
 using Newtonsoft.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Updater
 {
@@ -28,14 +30,20 @@ namespace Updater
 
             if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), filename)))
             {
-                Console.WriteLine("Download started for: " + name);
-                watcher.Restart();
-                //client.DownloadFile(uri, Path.Combine(Directory.GetCurrentDirectory(), filename));
-                client.DownloadFileAsync(uri, Path.Combine(Directory.GetCurrentDirectory(), filename));
-                Console.WriteLine(client.Progress);
-                watcher.Stop();
-                Console.WriteLine("Download finished for: " + name + " in {0}.\n ", watcher.Elapsed);
-
+                Task task = client.DownloadFileAsync(uri, Path.Combine(Directory.GetCurrentDirectory(), filename));
+                while (!task.IsCompleted)
+                {
+                    using (var progress = new ProgressBar())
+                    {
+                        for (; client.Progress <= 100;)
+                        {
+                            progress.Report((double)client.Progress / 100);
+                            Thread.Sleep(20);
+                            if (client.Progress == 100)
+                                break;
+                        }
+                    }
+                }
                 if (File.Exists(Path.Combine(Directory.GetCurrentDirectory(), filename)))
                 {
                     Console.WriteLine("Extraction started for: " + name);
