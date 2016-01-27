@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Updater
+namespace Installer
 {
     class Program
     {
