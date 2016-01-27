@@ -18,8 +18,9 @@ namespace Updater
         {
             string dewLoc = Path.Combine(Directory.GetCurrentDirectory(), "ElDewrito");
             System.Net.WebClient wc = new System.Net.WebClient();
-            dynamic dew = JsonConvert.DeserializeObject(wc.DownloadString("http://thetwist84.github.io/HaloOnlineModManager/game/game.json")); MegaApiClient client = new MegaApiClient();
-            client.LoginAnonymous();
+            dynamic dew = JsonConvert.DeserializeObject(wc.DownloadString("http://thetwist84.github.io/HaloOnlineModManager/game/game.json")); 
+            MegaApiClient mega = new MegaApiClient();
+            mega.LoginAnonymous();
             string name = dew["base"].Name;
             string filename = dew["base"].Filename;
             string url = dew["base"].Url;
@@ -30,16 +31,16 @@ namespace Updater
 
             if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), filename)))
             {
-                Task task = client.DownloadFileAsync(uri, Path.Combine(Directory.GetCurrentDirectory(), filename));
+                Task task = mega.DownloadFileAsync(uri, Path.Combine(Directory.GetCurrentDirectory(), filename));
                 while (!task.IsCompleted)
                 {
                     using (var progress = new ProgressBar())
                     {
-                        for (; client.Progress <= 100;)
+                        for (;mega.Progress <= 100;)
                         {
-                            progress.Report((double)client.Progress / 100);
+                            progress.Report((double)mega.Progress / 100);
                             Thread.Sleep(20);
-                            if (client.Progress == 100)
+                            if (mega.Progress == 100)
                                 break;
                         }
                     }
