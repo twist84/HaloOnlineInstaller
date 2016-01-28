@@ -3,12 +3,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using CG.Web.MegaApiClient;
 using ICSharpCode.SharpZipLib.Zip;
 using Newtonsoft.Json;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Installer
 {
@@ -23,12 +25,13 @@ namespace Installer
             mega.LoginAnonymous();
             string name = dew["base"].Name;
             string filename = dew["base"].Filename;
+            string hash = dew["base"].Hash;
             string url = dew["base"].Url;
             Uri uri = new Uri(url);
             Stopwatch watcher = Stopwatch.StartNew();
             FastZip fastZip = new FastZip();
             string filter = null;
-
+            
             if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), filename)))
             {
                 Task t = mega.DownloadFileAsync(uri, Path.Combine(Directory.GetCurrentDirectory(), filename));
@@ -42,27 +45,79 @@ namespace Installer
                 mega.Logout();
                 if (File.Exists(Path.Combine(Directory.GetCurrentDirectory(), filename)))
                 {
-                    Console.WriteLine("Extraction started for: " + name);
-                    watcher.Restart();
-                    fastZip.ExtractZip(filename, dewLoc, filter);
-                    watcher.Stop();
-                    Console.WriteLine("Extraction finished for: " + name + " in {0}.\n ", watcher.Elapsed);
+                    using (var sha256 = SHA256.Create())
+                    {
+                        using (var stream = File.OpenRead(filename))
+                        {
+                            if (Encoding.Default.GetString(sha256.ComputeHash(stream)) == hash)
+                            {
+                                stream.Close();
+                                Console.WriteLine("Extraction started for: " + name);
+                                watcher.Restart();
+                                fastZip.ExtractZip(filename, dewLoc, filter);
+                                watcher.Stop();
+                                Console.WriteLine("Extraction finished for: " + name + " in {0}.\n ", watcher.Elapsed);
+                            }
+                        }
+                    }
+                }
+                else if (File.Exists(Path.Combine(Directory.GetCurrentDirectory(), filename)))
+                {
+                    File.Delete(Path.Combine(Directory.GetCurrentDirectory(), filename));
+                    Task task = mega.DownloadFileAsync(uri, Path.Combine(Directory.GetCurrentDirectory(), filename));
+                    using (var progress = new ProgressBar())
+                    {
+                        while (!task.IsCompleted)
+                        {
+                            progress.Report((double)mega.Progress / 100);
+                        }
+                    }
+                    mega.Logout();
                 }
             }
             else if (File.Exists(Path.Combine(Directory.GetCurrentDirectory(), filename)))
             {
-                Console.WriteLine("Extraction started for: " + name);
-                watcher.Restart();
-                fastZip.ExtractZip(filename, dewLoc, filter);
-                watcher.Stop();
-                Console.WriteLine("Extraction finished for: " + name + " in {0}.\n ", watcher.Elapsed);
+                using (var sha256 = SHA256.Create())
+                {
+                    using (var stream = File.OpenRead(filename))
+                    {
+                        if (!(Encoding.Default.GetString(sha256.ComputeHash(stream)) == hash))
+                        {
+                            stream.Close();
+                            File.Delete(Path.Combine(Directory.GetCurrentDirectory(), filename));
+                            Task task = mega.DownloadFileAsync(uri, Path.Combine(Directory.GetCurrentDirectory(), filename));
+                            using (var progress = new ProgressBar())
+                            {
+                                while (!task.IsCompleted)
+                                {
+                                    progress.Report((double)mega.Progress / 100);
+                                }
+                            }
+                            mega.Logout();
+                            if (Encoding.Default.GetString(sha256.ComputeHash(stream)) == hash)
+                            {
+                                Console.WriteLine("Extraction started for: " + name);
+                                watcher.Restart();
+                                fastZip.ExtractZip(filename, dewLoc, filter);
+                                watcher.Stop();
+                                Console.WriteLine("Extraction finished for: " + name + " in {0}.\n ", watcher.Elapsed);
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Extraction started for: " + name);
+                            watcher.Restart();
+                            fastZip.ExtractZip(filename, dewLoc, filter);
+                            watcher.Stop();
+                            Console.WriteLine("Extraction finished for: " + name + " in {0}.\n ", watcher.Elapsed);
+                        }
+                    }
+                }
             }
-
-            if (!File.Exists(Path.Combine(dewLoc, "autoexec.cfg")))
+            if (File.Exists(dewLoc) && !File.Exists(Path.Combine(dewLoc, "autoexec.cfg")))
             {
                 File.WriteAllText(Path.Combine(dewLoc, "autoexec.cfg"), "Game.SkipLauncher \"1\"");
             }
-
             Console.WriteLine("Installation complete.\nPress any key to exit.");
             Console.ReadLine();
         }
