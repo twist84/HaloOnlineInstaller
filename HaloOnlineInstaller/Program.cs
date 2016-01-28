@@ -31,20 +31,15 @@ namespace Installer
 
             if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), filename)))
             {
-                Task task = mega.DownloadFileAsync(uri, Path.Combine(Directory.GetCurrentDirectory(), filename));
-                while (!task.IsCompleted)
+                Task t = mega.DownloadFileAsync(uri, Path.Combine(Directory.GetCurrentDirectory(), filename));
+                using (var progress = new ProgressBar())
                 {
-                    using (var progress = new ProgressBar())
+                    while (!t.IsCompleted)
                     {
-                        for (;mega.Progress <= 100;)
-                        {
-                            progress.Report((double)mega.Progress / 100);
-                            Thread.Sleep(20);
-                            if (mega.Progress == 100)
-                                break;
-                        }
+                        progress.Report((double)mega.Progress / 100);
                     }
                 }
+                mega.Logout();
                 if (File.Exists(Path.Combine(Directory.GetCurrentDirectory(), filename)))
                 {
                     Console.WriteLine("Extraction started for: " + name);
