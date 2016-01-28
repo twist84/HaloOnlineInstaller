@@ -31,7 +31,6 @@ namespace Installer
             Stopwatch watcher = Stopwatch.StartNew();
             FastZip fastZip = new FastZip();
             string filter = null;
-            
             if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), filename)))
             {
                 Task t = mega.DownloadFileAsync(uri, Path.Combine(Directory.GetCurrentDirectory(), filename));
