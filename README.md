@@ -1,2 +1,3 @@
 # HaloOnlineInstaller
-It is what is.
+
+This is a console application to install(download and extract) ElDewrito.
