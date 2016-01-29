@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -39,7 +40,7 @@ namespace Installer
                 HashCheck(url, hash, filename, name);
             }
 
-            if (File.Exists(dewLoc))
+            if (Directory.Exists(dewLoc))
             {
                 File.WriteAllText(Path.Combine(dewLoc, "autoexec.cfg"), "Game.SkipLauncher \"1\"");
             }
@@ -57,19 +58,64 @@ namespace Installer
 
             Stopwatch watcher = Stopwatch.StartNew();
 
-            Console.WriteLine("Download started for:" + filename);
+            if (url.Contains("mega.co.nz"))
+            {
+                Console.WriteLine("Download started for:" + filename);
+                watcher.Start();
+                Task t = mega.DownloadFileAsync(uri, fileloc);
+                using (var progress = new ProgressBar())
+                {
+                    while (!t.IsCompleted)
+                    {
+                        progress.Report((double)mega.Progress / 100);
+                    }
+                }
+                mega.Logout();
+                watcher.Stop();
+                Console.WriteLine("Download finished for: " + filename + " in {0}.\n ", watcher.Elapsed);
+            }
+            else
+            {
+                Console.WriteLine("Download started for:" + filename);
+                watcher.Start();
+                DownloadDirect(url, filename);
+                watcher.Stop();
+                Console.WriteLine("Download finished for: " + filename + " in {0}.\n ", watcher.Elapsed);
+            }
+        }
+        static void DownloadDirect(string url, string filename)
+        {
+            string fileloc = Path.Combine(Directory.GetCurrentDirectory(), filename);
+
+            Uri uri = new Uri(url);
+            System.Net.WebClient client = new System.Net.WebClient();
+
+            Stopwatch watcher = Stopwatch.StartNew();
             watcher.Start();
-            Task t = mega.DownloadFileAsync(uri, fileloc);
+
+            DownloadGamefile DGF = new DownloadGamefile();
+
+            DGF.DownloadFile(url, filename);
+
             using (var progress = new ProgressBar())
             {
-                while (!t.IsCompleted)
+                while (!DGF.DownloadCompleted)
                 {
-                    progress.Report((double)mega.Progress / 100);
+                    progress.Report((double)DGF.DownloadPercentage / 100);
                 }
             }
-            mega.Logout();
+
             watcher.Stop();
-            Console.WriteLine("Download finished for: " + filename + " in {0}.\n ", watcher.Elapsed);
+            
+        }
+        private static string GetChecksumBuffered(Stream stream)
+        {
+            using (var bufferedStream = new BufferedStream(stream, 1024 * 32))
+            {
+                var sha = new SHA256Managed();
+                byte[] checksum = sha.ComputeHash(bufferedStream);
+                return BitConverter.ToString(checksum).Replace("-", String.Empty);
+            }
         }
         static void HashCheck(string Url, string Hash, string Filename, string Name)
         {
@@ -80,24 +126,20 @@ namespace Installer
 
             if (File.Exists(Path.Combine(Directory.GetCurrentDirectory(), Filename)))
             {
-                using (var sha256 = SHA256.Create())
+                var fileStream = new FileStream(fileloc, FileMode.OpenOrCreate,
+                                            FileAccess.Read);
+                string compHash = GetChecksumBuffered(fileStream);
+                if (compHash == Hash)
                 {
-                    using (var stream = File.OpenRead(Filename))
-                    {
-
-                        if (Encoding.Default.GetString(sha256.ComputeHash(stream)) == Hash)
-                        {
-                            stream.Close();
-                            ExtractZip(Filename, Name);
-                        }
-                        else if (Encoding.Default.GetString(sha256.ComputeHash(stream)) != Hash)
-                        {
-                            stream.Close();
-                            File.Delete(Path.Combine(Directory.GetCurrentDirectory(), Filename));
-                            Download(Url, Filename);
-                            HashCheck(Url, Hash, Filename, Name);
-                        }
-                    }
+                    Console.WriteLine("Hash check succeeded.");
+                    ExtractZip(Filename, Name);
+                }
+                else
+                {
+                    Console.WriteLine("Hash check failed.");
+                    File.Delete(Path.Combine(Directory.GetCurrentDirectory(), Filename));
+                    Download(Url, Filename);
+                    HashCheck(Url, Hash, Filename, Name);
                 }
             }
         }
@@ -118,5 +160,44 @@ namespace Installer
             Console.WriteLine("Extraction finished for: " + Name + " in {0}.\n ", watcher.Elapsed);
         }
         //static void Updater(){}
+    }
+    class DownloadGamefile
+    {
+        private volatile bool _completed;
+        private volatile int _progress;
+
+        public void DownloadFile(string address, string location)
+        {
+            System.Net.WebClient client = new System.Net.WebClient();
+            Uri Uri = new Uri(address);
+            _completed = false;
+
+            client.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
+
+            client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(DownloadProgress);
+            client.DownloadFileAsync(Uri, location);
+
+        }
+
+        public bool DownloadCompleted { get { return _completed; } }
+
+        private void DownloadProgress(object sender, DownloadProgressChangedEventArgs e)
+        {
+            // Displays the operation identifier, and the transfer progress.
+            /*Console.WriteLine("{0}    downloaded {1} of {2} bytes. {3} % complete...",
+                (string)e.UserState,
+                e.BytesReceived,
+                e.TotalBytesToReceive,
+                e.ProgressPercentage);*/
+            _progress = e.ProgressPercentage;
+
+        }
+
+        public int DownloadPercentage { get { return _progress; } }
+
+        private void Completed(object sender, AsyncCompletedEventArgs e)
+        {
+            _completed = true;
+        }
     }
 }
