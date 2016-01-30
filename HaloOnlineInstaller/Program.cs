@@ -19,7 +19,7 @@ namespace Installer
     {
         static void Main()
         {
-            if (!Environment.OSVersion.ToString().Contains("Microsoft Windows NT 6.2"));
+            if (!Environment.OSVersion.ToString().Contains("Microsoft Windows NT 6.2"))
                 ConsoleResize(120, 30);
 
             System.Net.WebClient wc = new System.Net.WebClient();
@@ -40,12 +40,14 @@ namespace Installer
                 HashCheck(url, hash, filename, name);
                 Console.Clear();
                 ExtractZip(filename, name);
+                Console.Clear();
             }
             else
             {
                 HashCheck(url, hash, filename, name);
                 Console.Clear();
                 ExtractZip(filename, name);
+                Console.Clear();
             }
 
             if (Directory.Exists(dewLoc))
@@ -55,7 +57,7 @@ namespace Installer
 
             Console.WriteLine("Installation complete.\nPress any key to exit.");
             Console.ReadLine();
-            if (!Environment.OSVersion.ToString().Contains("Microsoft Windows NT 6.2"));
+            if (!Environment.OSVersion.ToString().Contains("Microsoft Windows NT 6.2"))
                 ConsoleResize(80, 25);
         }
         static void Download(string url, string filename)
@@ -139,8 +141,11 @@ namespace Installer
                 {
                     Console.WriteLine("Hash check finish for: " + Filename + " and failed.");
                     File.Delete(Path.Combine(Directory.GetCurrentDirectory(), Filename));
+                    Console.Clear();
                     Download(Url, Filename);
+                    Console.Clear();
                     HashCheck(Url, Hash, Filename, Name);
+                    Console.Clear();
                 }
             }
         }
