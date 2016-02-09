@@ -23,7 +23,7 @@ namespace Installer
                 ConsoleResize(120, 30);
 
             System.Net.WebClient wc = new System.Net.WebClient();
-            dynamic dew = JsonConvert.DeserializeObject(wc.DownloadString("http://thetwist84.github.io/HaloOnlineModManager/game/game.json")); 
+            dynamic dew = JsonConvert.DeserializeObject(wc.DownloadString("http://thetwist84.github.io/HaloOnlineModManager/game/base.json")); 
 
             string name = dew["base"].Name;
             string filename = dew["base"].Filename;
