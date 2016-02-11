@@ -61,6 +61,7 @@ namespace Installer
             if (!Environment.OSVersion.ToString().Contains("Microsoft Windows NT 6.2"))
                 ConsoleResize(80, 25);
         }
+
         static void Download(string url, string filename)
         {
             string fileloc = Path.Combine(Directory.GetCurrentDirectory(), filename);
@@ -108,6 +109,7 @@ namespace Installer
             }
             Console.Clear();
         }
+
         private static string HashCheck(string Hash, string Filename)
         {
             string dewLoc = Path.Combine(Directory.GetCurrentDirectory(), "ElDewrito");
@@ -147,6 +149,7 @@ namespace Installer
             else
                 return c;
         }
+
         static void ExtractZip(string filename, string Name)
         {
             string dewLoc = Path.Combine(Directory.GetCurrentDirectory(), "ElDewrito");
@@ -164,10 +167,12 @@ namespace Installer
             Console.WriteLine("Extraction finished for: " + Name + " in {0}.\n ", watcher.Elapsed);
             Console.Clear();
         }
+
         static void ConsoleResize(int origWidth, int origHeight)
         {
             Console.SetWindowSize(origWidth, origHeight);
         }
+
         //static void Updater(){}
     }
     class DownloadGamefile

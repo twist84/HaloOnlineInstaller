@@ -83,8 +83,6 @@
     <Content Include="FodyWeavers.xml" />
     <Content Include="MegaApiClient.dll" />
     <Content Include="MegaApiClient.XML" />
-    <Content Include="Newtonsoft.Json.dll" />
-    <Content Include="Newtonsoft.Json.xml" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MegaApiClient.dll.config" />
