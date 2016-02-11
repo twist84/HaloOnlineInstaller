@@ -36,18 +36,19 @@ namespace Installer
             if (!File.Exists(fileLoc))
             {
                 Download(url, filename);
-                Console.Clear();
-                HashCheck(url, hash, filename, name);
-                Console.Clear();
-                ExtractZip(filename, name);
-                Console.Clear();
+                string hashCheck = HashCheck(hash, filename);
+                if (hashCheck == "passed")
+                    ExtractZip(filename, name);
+                else if (hashCheck == "failed")
+                    Download(url, filename);
             }
             else
             {
-                HashCheck(url, hash, filename, name);
-                Console.Clear();
-                ExtractZip(filename, name);
-                Console.Clear();
+                string hashCheck = HashCheck(hash, filename);
+                if (hashCheck == "passed")
+                    ExtractZip(filename, name);
+                else if (hashCheck == "failed")
+                    Download(url, filename);
             }
 
             if (Directory.Exists(dewLoc))
@@ -88,42 +89,33 @@ namespace Installer
             }
             else
             {
-                Console.WriteLine("Download started for:" + filename);
+                Console.WriteLine("Download started for: " + filename);
                 watcher.Start();
-                DownloadDirect(url, filename);
+
+                DownloadGamefile DGF = new DownloadGamefile();
+
+                DGF.DownloadFile(url, filename);
+
+                using (var progress = new ProgressBar())
+                {
+                    while (!DGF.DownloadCompleted)
+                    {
+                        progress.Report((double)DGF.DownloadPercentage / 100);
+                    }
+                }
                 watcher.Stop();
                 Console.WriteLine("Download finished for: " + filename + " in {0}.\n ", watcher.Elapsed);
             }
+            Console.Clear();
         }
-        static void DownloadDirect(string url, string filename)
-        {
-            string fileloc = Path.Combine(Directory.GetCurrentDirectory(), filename);
-
-            Uri uri = new Uri(url);
-            System.Net.WebClient client = new System.Net.WebClient();
-
-            Stopwatch watcher = Stopwatch.StartNew();
-            watcher.Start();
-
-            DownloadGamefile DGF = new DownloadGamefile();
-
-            DGF.DownloadFile(url, filename);
-
-            using (var progress = new ProgressBar())
-            {
-                while (!DGF.DownloadCompleted)
-                {
-                    progress.Report((double)DGF.DownloadPercentage / 100);
-                }
-            }
-
-            watcher.Stop();
-            
-        }
-        static void HashCheck(string Url, string Hash, string Filename, string Name)
+        private static string HashCheck(string Hash, string Filename)
         {
             string dewLoc = Path.Combine(Directory.GetCurrentDirectory(), "ElDewrito");
             string fileloc = Path.Combine(Directory.GetCurrentDirectory(), Filename);
+
+            string a = "passed";
+            string b = "failed";
+            string c = "nofile";
 
             Stopwatch watcher = Stopwatch.StartNew();
 
@@ -132,31 +124,28 @@ namespace Installer
             {
                 var fileStream = new FileStream(fileloc, FileMode.OpenOrCreate,
                                             FileAccess.Read);
-                string compHash = GetChecksumBuffered(fileStream);
-                if (compHash == Hash)
+                using (var bufferedStream = new BufferedStream(fileStream, 1024 * 32))
                 {
-                    Console.WriteLine("Hash check finish for: " + Filename + " and succeeded.");
-                }
-                else
-                {
-                    Console.WriteLine("Hash check finish for: " + Filename + " and failed.");
-                    File.Delete(Path.Combine(Directory.GetCurrentDirectory(), Filename));
-                    Console.Clear();
-                    Download(Url, Filename);
-                    Console.Clear();
-                    HashCheck(Url, Hash, Filename, Name);
-                    Console.Clear();
+                    var sha = new SHA256Managed();
+                    byte[] checksum = sha.ComputeHash(bufferedStream);
+
+                    string compHash = BitConverter.ToString(checksum).Replace("-", String.Empty);
+                    if (compHash == Hash)
+                    {
+                        Console.WriteLine("Hash check finish for: " + Filename + " and succeeded.");
+                        Console.Clear();
+                        return a;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Hash check finish for: " + Filename + " and failed.");
+                        Console.Clear();
+                        return b;
+                    }
                 }
             }
-        }
-        private static string GetChecksumBuffered(Stream stream)
-        {
-            using (var bufferedStream = new BufferedStream(stream, 1024 * 32))
-            {
-                var sha = new SHA256Managed();
-                byte[] checksum = sha.ComputeHash(bufferedStream);
-                return BitConverter.ToString(checksum).Replace("-", String.Empty);
-            }
+            else
+                return c;
         }
         static void ExtractZip(string filename, string Name)
         {
@@ -173,6 +162,7 @@ namespace Installer
             fastZip.ExtractZip(filename, dewLoc, filter);
             watcher.Stop();
             Console.WriteLine("Extraction finished for: " + Name + " in {0}.\n ", watcher.Elapsed);
+            Console.Clear();
         }
         static void ConsoleResize(int origWidth, int origHeight)
         {
@@ -198,8 +188,6 @@ namespace Installer
 
         }
 
-        public bool DownloadCompleted { get { return _completed; } }
-
         private void DownloadProgress(object sender, DownloadProgressChangedEventArgs e)
         {
             // Displays the operation identifier, and the transfer progress.
@@ -211,6 +199,8 @@ namespace Installer
             _progress = e.ProgressPercentage;
 
         }
+
+        public bool DownloadCompleted { get { return _completed; } }
 
         public int DownloadPercentage { get { return _progress; } }
 
